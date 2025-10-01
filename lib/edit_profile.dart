@@ -2,27 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'models/profile_item.dart';
 
-class NewProfile extends StatefulWidget {
-  const NewProfile({super.key, required this.onAddProfile});
+class EditProfile extends StatefulWidget {
+  const EditProfile({
+    super.key,
+    required this.profile,
+    required this.onUpdateProfile,
+    required this.onDeleteProfile,
+  });
 
-  final void Function(ProfileItem profile) onAddProfile;
+  final ProfileItem profile;
+  final void Function(ProfileItem oldProfile, ProfileItem updatedProfile) onUpdateProfile;
+  final void Function(ProfileItem profile) onDeleteProfile;
 
   @override
-  State<NewProfile> createState() => _NewProfileState();
+  State<EditProfile> createState() => _EditProfileState();
 }
 
-class _NewProfileState extends State<NewProfile> {
+class _EditProfileState extends State<EditProfile> {
   final _formKey = GlobalKey<FormState>();
-  final _nicknameController = TextEditingController();
-  final _fullNameController = TextEditingController();
-  final _contactController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _remarksController = TextEditingController();
-  
+  late final TextEditingController _nicknameController;
+  late final TextEditingController _fullNameController;
+  late final TextEditingController _contactController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _addressController;
+  late final TextEditingController _remarksController;
+
   // Badminton level slider values
-  RangeValues _badmintonLevelRange = const RangeValues(0, 3);
-  
+  late RangeValues _badmintonLevelRange;
+
   // Badminton levels with their respective labels
   final List<String> _badmintonLevels = [
     'Beginners',
@@ -33,28 +40,46 @@ class _NewProfileState extends State<NewProfile> {
     'Level D',
     'Open Player'
   ];
-  
+
   final List<String> _subLevels = ['Weak', 'Mid', 'Strong'];
-  
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill controllers with existing data
+    _nicknameController = TextEditingController(text: widget.profile.nickname);
+    _fullNameController = TextEditingController(text: widget.profile.fullName);
+    _contactController = TextEditingController(text: widget.profile.contactNumber);
+    _emailController = TextEditingController(text: widget.profile.email);
+    _addressController = TextEditingController(text: widget.profile.address);
+    _remarksController = TextEditingController(text: widget.profile.remarks);
+    
+    // Set badminton level range to current values
+    _badmintonLevelRange = RangeValues(
+      widget.profile.badmintonLevelMin,
+      widget.profile.badmintonLevelMax,
+    );
+  }
+
   String _getBadmintonLevelLabel(double value) {
     int levelIndex = (value / 3).floor();
     int subLevelIndex = (value % 3).floor();
-    
+
     if (levelIndex >= _badmintonLevels.length) {
       levelIndex = _badmintonLevels.length - 1;
       subLevelIndex = 2; // Strong
     }
-    
+
     return '${_badmintonLevels[levelIndex]} (${_subLevels[subLevelIndex]})';
   }
 
-  void _submitProfileData() {
+  void _updateProfileData() {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    final newProfile = ProfileItem(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+    final updatedProfile = ProfileItem(
+      id: widget.profile.id, // Keep the same ID
       nickname: _nicknameController.text.trim(),
       fullName: _fullNameController.text.trim(),
       contactNumber: _contactController.text.trim(),
@@ -63,11 +88,43 @@ class _NewProfileState extends State<NewProfile> {
       remarks: _remarksController.text.trim(),
       badmintonLevelMin: _badmintonLevelRange.start,
       badmintonLevelMax: _badmintonLevelRange.end,
-      createdAt: DateTime.now(),
+      createdAt: widget.profile.createdAt, // Keep original creation date
     );
 
-    widget.onAddProfile(newProfile);
+    widget.onUpdateProfile(widget.profile, updatedProfile);
     Navigator.pop(context);
+  }
+
+  Future<void> _confirmDelete() async {
+    final bool? shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Player'),
+          content: Text(
+            'Are you sure you want to permanently delete ${widget.profile.nickname} (${widget.profile.fullName})?\\n\\nThis action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete == true) {
+      widget.onDeleteProfile(widget.profile);
+      Navigator.pop(context); // Close the edit screen
+    }
   }
 
   @override
@@ -87,9 +144,16 @@ class _NewProfileState extends State<NewProfile> {
     
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add New Player'),
+        title: const Text('Edit Player Profile'),
         backgroundColor: const Color(0xFF214D45),
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: _confirmDelete,
+            tooltip: 'Delete Player',
+          ),
+        ],
       ),
       body: Form(
         key: _formKey,
@@ -239,7 +303,9 @@ class _NewProfileState extends State<NewProfile> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade600),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outline.withOpacity(0.5),
+                  ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -282,7 +348,7 @@ class _NewProfileState extends State<NewProfile> {
                       },
                     ),
                     const SizedBox(height: 8),
-                                        // Level indicators
+                    // Level indicators
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
                       child: Row(
@@ -388,7 +454,7 @@ class _NewProfileState extends State<NewProfile> {
                     child: ElevatedButton(
                       onPressed: () {
                         if (_formKey.currentState!.validate()) {
-                          _submitProfileData();
+                          _updateProfileData();
                         }
                       },
                       style: ElevatedButton.styleFrom(
@@ -399,7 +465,7 @@ class _NewProfileState extends State<NewProfile> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text('Save Player'),
+                      child: const Text('Update Player'),
                     ),
                   ),
                 ],

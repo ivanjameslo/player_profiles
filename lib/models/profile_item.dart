@@ -10,6 +10,8 @@ class ProfileItem {
     required this.email,
     required this.address,
     required this.remarks,
+    required this.badmintonLevelMin,
+    required this.badmintonLevelMax,
     required this.createdAt,
   });
 
@@ -20,5 +22,7 @@ class ProfileItem {
   final String email;
   final String address;
   final String remarks;
+  final double badmintonLevelMin;
+  final double badmintonLevelMax;
   final DateTime createdAt;
 }
