@@ -311,7 +311,7 @@ class _NewProfileState extends State<NewProfile> {
                               'Beginners',
                               textAlign: TextAlign.start,
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 8,
                                 color: Colors.grey.shade600,
                               ),
                             ),
@@ -321,7 +321,7 @@ class _NewProfileState extends State<NewProfile> {
                               'Intermediate',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 8,
                                 color: Colors.grey.shade600,
                               ),
                             ),
@@ -331,7 +331,7 @@ class _NewProfileState extends State<NewProfile> {
                               'Level G',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 8,
                                 color: Colors.grey.shade600,
                               ),
                             ),
@@ -341,7 +341,7 @@ class _NewProfileState extends State<NewProfile> {
                               'Level F',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 8,
                                 color: Colors.grey.shade600,
                               ),
                             ),
@@ -351,7 +351,7 @@ class _NewProfileState extends State<NewProfile> {
                               'Level E',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 8,
                                 color: Colors.grey.shade600,
                               ),
                             ),
@@ -361,7 +361,7 @@ class _NewProfileState extends State<NewProfile> {
                               'Level D',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 8,
                                 color: Colors.grey.shade600,
                               ),
                             ),
@@ -371,7 +371,7 @@ class _NewProfileState extends State<NewProfile> {
                               'Open Player',
                               textAlign: TextAlign.end,
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 8,
                                 color: Colors.grey.shade600,
                               ),
                             ),

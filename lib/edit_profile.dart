@@ -359,7 +359,7 @@ class _EditProfileState extends State<EditProfile> {
                               'Beginners',
                               textAlign: TextAlign.start,
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 8,
                                 color: Colors.grey.shade600,
                               ),
                             ),
@@ -369,7 +369,7 @@ class _EditProfileState extends State<EditProfile> {
                               'Intermediate',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 8,
                                 color: Colors.grey.shade600,
                               ),
                             ),
@@ -379,7 +379,7 @@ class _EditProfileState extends State<EditProfile> {
                               'Level G',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 8,
                                 color: Colors.grey.shade600,
                               ),
                             ),
@@ -389,7 +389,7 @@ class _EditProfileState extends State<EditProfile> {
                               'Level F',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 8,
                                 color: Colors.grey.shade600,
                               ),
                             ),
@@ -399,7 +399,7 @@ class _EditProfileState extends State<EditProfile> {
                               'Level E',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 8,
                                 color: Colors.grey.shade600,
                               ),
                             ),
@@ -409,7 +409,7 @@ class _EditProfileState extends State<EditProfile> {
                               'Level D',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 8,
                                 color: Colors.grey.shade600,
                               ),
                             ),
@@ -419,7 +419,7 @@ class _EditProfileState extends State<EditProfile> {
                               'Open Player',
                               textAlign: TextAlign.end,
                               style: TextStyle(
-                                fontSize: 9,
+                                fontSize: 8,
                                 color: Colors.grey.shade600,
                               ),
                             ),
