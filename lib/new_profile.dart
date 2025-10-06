@@ -5,7 +5,7 @@ import 'models/profile_item.dart';
 class NewProfile extends StatefulWidget {
   const NewProfile({super.key, required this.onAddProfile});
 
-  final void Function(ProfileItem profile) onAddProfile;
+  final bool Function(ProfileItem profile) onAddProfile;
 
   @override
   State<NewProfile> createState() => _NewProfileState();
@@ -19,6 +19,7 @@ class _NewProfileState extends State<NewProfile> {
   final _emailController = TextEditingController();
   final _addressController = TextEditingController();
   final _remarksController = TextEditingController();
+  bool _isSubmitting = false;
   
   // Badminton level slider values
   RangeValues _badmintonLevelRange = const RangeValues(0, 3);
@@ -53,6 +54,12 @@ class _NewProfileState extends State<NewProfile> {
       return;
     }
 
+    if (_isSubmitting) return; // Prevent double submission
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
     final newProfile = ProfileItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       nickname: _nicknameController.text.trim(),
@@ -66,8 +73,19 @@ class _NewProfileState extends State<NewProfile> {
       createdAt: DateTime.now(),
     );
 
-    widget.onAddProfile(newProfile);
-    Navigator.pop(context);
+    try {
+      final bool success = widget.onAddProfile(newProfile);
+      // Only close the form if the profile was successfully added
+      if (success && mounted) {
+        Navigator.pop(context);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
   }
 
   @override
@@ -386,7 +404,7 @@ class _NewProfileState extends State<NewProfile> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: _isSubmitting ? null : () {
                         if (_formKey.currentState!.validate()) {
                           _submitProfileData();
                         }
@@ -399,7 +417,23 @@ class _NewProfileState extends State<NewProfile> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text('Save Player'),
+                      child: _isSubmitting 
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Text('Saving...'),
+                            ],
+                          )
+                        : const Text('Save Player'),
                     ),
                   ),
                 ],

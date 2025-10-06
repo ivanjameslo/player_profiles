@@ -72,11 +72,203 @@ class _ProfilePageState extends State<ProfilePage> {
     return _skillLevelColors[colorIndex];
   }
 
-  void _addProfile(ProfileItem profile) {
+  // Check if a profile with similar details already exists
+  ProfileItem? _findDuplicateProfile(ProfileItem newProfile) {
+    for (final existingProfile in _profiles) {
+      // Check for exact nickname match (case insensitive)
+      if (existingProfile.nickname.toLowerCase() == newProfile.nickname.toLowerCase()) {
+        return existingProfile;
+      }
+      
+      // Check for exact full name match (case insensitive)
+      if (existingProfile.fullName.toLowerCase() == newProfile.fullName.toLowerCase()) {
+        return existingProfile;
+      }
+      
+      // Check for exact contact number match
+      if (existingProfile.contactNumber == newProfile.contactNumber) {
+        return existingProfile;
+      }
+      
+      // Check for exact email match (case insensitive)
+      if (existingProfile.email.toLowerCase() == newProfile.email.toLowerCase()) {
+        return existingProfile;
+      }
+    }
+    return null; // No duplicate found
+  }
+
+  bool _addProfile(ProfileItem profile) {
+    final duplicateProfile = _findDuplicateProfile(profile);
+    if (duplicateProfile != null) {
+      _showDuplicateDialog(duplicateProfile, profile);
+      return false; // Indicate failure due to duplicate
+    }
+    
     setState(() {
       _profiles.add(profile);
       _filterProfiles(); // Refresh filtered list
     });
+    return true; // Indicate success
+  }
+
+  void _showDuplicateDialog(ProfileItem existingProfile, ProfileItem newProfile) {
+    // Determine which field is duplicated
+    String duplicateField = '';
+    
+    if (existingProfile.nickname.toLowerCase() == newProfile.nickname.toLowerCase()) {
+      duplicateField = 'Nickname';
+    } else if (existingProfile.fullName.toLowerCase() == newProfile.fullName.toLowerCase()) {
+      duplicateField = 'Full Name';
+    } else if (existingProfile.contactNumber == newProfile.contactNumber) {
+      duplicateField = 'Contact Number';
+    } else if (existingProfile.email.toLowerCase() == newProfile.email.toLowerCase()) {
+      duplicateField = 'Email Address';
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.orange.shade600,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Duplicate Player Found',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                // 'A player with the same $duplicateField already exists:',
+                'A player with the same details already exists:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildDetailRow('Nickname:', existingProfile.nickname),
+                    _buildDetailRow('Full Name:', existingProfile.fullName),
+                    _buildDetailRow('Contact:', existingProfile.contactNumber),
+                    _buildDetailRow('Email:', existingProfile.email),
+                    if (existingProfile.address.isNotEmpty)
+                      _buildDetailRow('Address:', existingProfile.address),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.red.shade600,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Please use different details or check if this player already exists.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.red.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                backgroundColor: const Color(0xFF214D45),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Got it',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 85,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: Colors.grey.shade700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _updateProfile(ProfileItem oldProfile, ProfileItem updatedProfile) {
