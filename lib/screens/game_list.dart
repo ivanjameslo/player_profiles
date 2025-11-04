@@ -19,6 +19,8 @@ class _GameListScreenState extends State<GameListScreen> {
     symbol: '₱',
     decimalDigits: 2,
   );
+  String _safeCurrency(double v) =>
+    (!v.isFinite || v.isNaN) ? '₱0.00' : currencyFormat.format(v);
 
   @override
   void initState() {
@@ -47,15 +49,15 @@ class _GameListScreenState extends State<GameListScreen> {
     });
   }
 
-  String _formatSchedules(List<DateTime> times) {
-    if (times.isEmpty) return 'No schedule';
-    
+  String _formatFirstSchedule(Game game) {
+    final schedules = game.schedules;
+    if (schedules.isEmpty) return 'No schedule';
     final dateFormat = DateFormat('MMM d, y');
     final timeFormat = DateFormat('h:mm a');
-    final firstTime = times.first;
-    
-    return '${dateFormat.format(firstTime)} at ${timeFormat.format(firstTime)}';
+    final s = schedules.first;
+    return '${dateFormat.format(s.startTime)} at ${timeFormat.format(s.startTime)}';
   }
+
 
   Future<void> _confirmDelete(Game game) async {
     final bool? shouldDelete = await showDialog<bool>(
@@ -92,14 +94,95 @@ class _GameListScreenState extends State<GameListScreen> {
   }
 
   void _viewGameDetails(Game game) {
-    // TODO: Navigate to game details screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Game details view coming soon'),
-        backgroundColor: Color(0xFF214D45),
-      ),
-    );
-  }
+  showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    backgroundColor: Colors.white,
+    isScrollControlled: true,
+    builder: (BuildContext context) {
+      final dateFormat = DateFormat('MMM d, y');
+      final timeFormat = DateFormat('h:mm a');
+      final schedules = game.schedules.map((s) {
+        return '${dateFormat.format(s.startTime)} '
+               '${timeFormat.format(s.startTime)} - '
+               '${timeFormat.format(s.endTime)}';
+      }).toList();
+
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 50,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Text(
+              game.displayTitle,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF214D45),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            _buildDetailRow('Court Name', game.courtName),
+            // _buildDetailRow('Players', '${game.numberOfPlayers}'),
+            _buildDetailRow('Total Cost', currencyFormat.format(game.totalCost)),
+            const SizedBox(height: 12),
+
+            const Text(
+              'Schedules',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 6),
+
+            ...schedules.map(
+              (s) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.schedule, size: 16, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    Text(s, style: const TextStyle(fontSize: 14)),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+                label: const Text('Close'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF214D45),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -171,6 +254,7 @@ class _GameListScreenState extends State<GameListScreen> {
                         padding: const EdgeInsets.all(16),
                         itemCount: _filteredGames.length,
                         itemBuilder: (context, index) {
+                          try {
                           final game = _filteredGames[index];
                           return Dismissible(
                             key: Key(game.id),
@@ -224,24 +308,24 @@ class _GameListScreenState extends State<GameListScreen> {
                                               ],
                                             ),
                                           ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 6,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF214D45),
-                                              borderRadius: BorderRadius.circular(20),
-                                            ),
-                                            child: Text(
-                                              '${game.numberOfPlayers} Players',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ),
+                                          // Container(
+                                          //   padding: const EdgeInsets.symmetric(
+                                          //     horizontal: 12,
+                                          //     vertical: 6,
+                                          //   ),
+                                          //   decoration: BoxDecoration(
+                                          //     color: const Color(0xFF214D45),
+                                          //     borderRadius: BorderRadius.circular(20),
+                                          //   ),
+                                          //   child: Text(
+                                          //     '${game.numberOfPlayers} Players',
+                                          //     style: const TextStyle(
+                                          //       color: Colors.white,
+                                          //       fontSize: 12,
+                                          //       fontWeight: FontWeight.w500,
+                                          //     ),
+                                          //   ),
+                                          // ),
                                         ],
                                       ),
                                       const SizedBox(height: 12),
@@ -249,16 +333,14 @@ class _GameListScreenState extends State<GameListScreen> {
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
-                                            _formatSchedules([
-                                              game.schedules.first.startTime,
-                                            ]),
+                                            _formatFirstSchedule(game),
                                             style: const TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
                                           Text(
-                                            currencyFormat.format(game.totalCost),
+                                            _safeCurrency(game.totalCost),
                                             style: const TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
@@ -284,17 +366,54 @@ class _GameListScreenState extends State<GameListScreen> {
                               ),
                             ),
                           );
+                          } catch (e, st) {
+                            // ignore: avoid_print
+                            print('❌ itemBuilder error at index $index: $e\n$st');
+                            return Card(
+                              color: Colors.red.shade50,
+                              child: ListTile(
+                                title: const Text('Failed to render game'),
+                                subtitle: Text('$e'),
+                              ),
+                            );
+                          }
                         },
                       ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
+        onPressed: () async {
+          // Push AddGameScreen and WAIT for the Game to be returned
+          final newGame = await Navigator.of(context).push<Game>(
             MaterialPageRoute(
-              builder: (context) => const AddGameScreen(),
+              builder: (_) => const AddGameScreen(),
+              fullscreenDialog: true,
+            ),
+          );
+
+          // Debug: prove we got back to this screen
+          // ignore: avoid_print
+          print('⬅️ GameList: received from AddGame => $newGame');
+
+          if (!mounted || newGame == null) return;
+
+          setState(() {
+            _games.add(newGame);
+
+            final q = _searchController.text.toLowerCase();
+            _filteredGames = q.isEmpty
+                ? List.from(_games)
+                : _games.where((g) =>
+                    g.displayTitle.toLowerCase().contains(q) ||
+                    g.courtName.toLowerCase().contains(q),
+                  ).toList();
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Game added'),
+              backgroundColor: Color(0xFF214D45),
             ),
           );
         },
@@ -302,6 +421,33 @@ class _GameListScreenState extends State<GameListScreen> {
         shape: const CircleBorder(),
         child: const Icon(Icons.add, color: Colors.white),
       ),
+
     );
   }
+  Widget _buildDetailRow(String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.grey.shade700,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 }

@@ -1,8 +1,37 @@
 import 'package:flutter/material.dart';
 import 'main_screen.dart';
+import 'dart:async';
 
 void main() {
-  runApp(const MyApp());
+  // Always show Flutter's red error overlay
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+  };
+
+  // Catch async errors too and print them
+  runZonedGuarded(() {
+    runApp(const MyApp()); // <-- your root widget
+  }, (error, stack) {
+    // ignore: avoid_print
+    print('🔥 Uncaught: $error\n$stack');
+  });
+
+  // If a widget throws during build, render a visible error instead of black
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      color: Colors.black,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Widget Error:\n${details.exception}',
+            style: const TextStyle(color: Colors.redAccent, fontSize: 14),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+  };
 }
 
 class MyApp extends StatelessWidget {

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/app_prefs.dart';
 
 class UserSettingsScreen extends StatefulWidget {
   const UserSettingsScreen({super.key});
@@ -23,9 +25,19 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
     super.dispose();
   }
 
-  void _saveSettings() {
+  Future<void> _saveSettings() async {
     if (_formKey.currentState!.validate()) {
-      // TODO: Save settings to shared preferences or local storage
+      final rate  = double.tryParse(_courtRateController.text.trim()) ?? 0;
+      final shutt = double.tryParse(_shuttleCockPriceController.text.trim()) ?? 0;
+
+      await AppPrefs.saveDefaults(
+        courtName: _courtNameController.text.trim(),
+        courtRate: rate,
+        shuttlecockPrice: shutt,
+        divideEqually: _divideCourtEqually,
+      );
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Settings saved successfully'),
@@ -33,7 +45,25 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
+      // Optional: Navigator.pop(context);
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDefaultsIntoFields();
+  }
+
+  Future<void> _loadDefaultsIntoFields() async {
+    final d = await AppPrefs.loadDefaults();
+    if (!mounted) return;
+    setState(() {
+      _courtNameController.text = d.courtName;
+      _courtRateController.text = d.courtRate.toStringAsFixed(0);
+      _shuttleCockPriceController.text = d.shuttlecockPrice.toStringAsFixed(0);
+      _divideCourtEqually = d.divideEqually;
+    });
   }
 
   @override

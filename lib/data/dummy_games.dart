@@ -25,7 +25,6 @@ class DummyGames {
           ),
         ],
         createdAt: now.subtract(const Duration(days: 2)),
-        numberOfPlayers: 8,
       ),
       Game(
         id: 'game_002',
@@ -41,7 +40,6 @@ class DummyGames {
           ),
         ],
         createdAt: now.subtract(const Duration(days: 1)),
-        numberOfPlayers: 4,
       ),
       Game(
         id: 'game_003',
@@ -58,7 +56,6 @@ class DummyGames {
           ),
         ],
         createdAt: now,
-        numberOfPlayers: 6,
       ),
     ];
   }

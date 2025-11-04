@@ -5,13 +5,12 @@ class Game {
   final String id;
   final String? title;
   final String courtName;
-  final double courtRate;
-  final double shuttleCockPrice;
-  final bool divideCostEqually;
+  final double courtRate;          // rate per hour
+  final double shuttleCockPrice;   // fixed add-on
+  final bool divideCostEqually;    // kept for future use
   final List<CourtSchedule> schedules;
   final DateTime createdAt;
-  final int numberOfPlayers; // TODO: Will be replaced with actual player list
-  
+
   Game({
     required this.id,
     this.title,
@@ -21,67 +20,40 @@ class Game {
     required this.divideCostEqually,
     required this.schedules,
     required this.createdAt,
-    this.numberOfPlayers = 4, // Default to 4 players
   });
 
-  // Calculate total cost including court rate and shuttlecock price
+  /// Sum of (courtRate * hours) for all valid schedules + shuttleCockPrice.
+  /// Returns 0 for invalid values; never NaN/Infinity.
   double get totalCost {
-    double total = 0;
-    
-    // Calculate court rate for each schedule
-    for (var schedule in schedules) {
-      final hours = schedule.endTime.difference(schedule.startTime).inMinutes / 60.0;
-      total += courtRate * hours;
-    }
-    
-    // Add shuttlecock price
-    total += shuttleCockPrice;
-    
-    return total;
+    final hours = _totalHours();
+    final rate   = courtRate.isFinite && courtRate > 0 ? courtRate : 0.0;
+    final shuttle= shuttleCockPrice.isFinite && shuttleCockPrice > 0 ? shuttleCockPrice : 0.0;
+    final cost = rate * hours + shuttle;
+    return (cost.isFinite && !cost.isNaN) ? cost : 0.0;
   }
 
-  // Get formatted display title
+  /// Display title: explicit title if set; otherwise earliest schedule date; otherwise fallback.
   String get displayTitle {
-    if (title != null && title!.isNotEmpty) {
-      return title!;
-    }
-    // If no title, use the earliest schedule date
+    if (title != null && title!.trim().isNotEmpty) return title!.trim();
     if (schedules.isNotEmpty) {
-      final earliestSchedule = schedules.reduce(
-        (a, b) => a.startTime.isBefore(b.startTime) ? a : b
+      final earliest = schedules.reduce(
+        (a, b) => a.startTime.isBefore(b.startTime) ? a : b,
       );
-      return DateFormat('MMM d, y').format(earliestSchedule.startTime);
+      return DateFormat('MMM d, y').format(earliest.startTime);
     }
     return 'Untitled Game';
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'courtName': courtName,
-      'courtRate': courtRate,
-      'shuttleCockPrice': shuttleCockPrice,
-      'divideCostEqually': divideCostEqually,
-      'schedules': schedules.map((s) => s.toJson()).toList(),
-      'createdAt': createdAt.toIso8601String(),
-      'numberOfPlayers': numberOfPlayers,
-    };
-  }
+  // ------- Helpers -------
 
-  factory Game.fromJson(Map<String, dynamic> json) {
-    return Game(
-      id: json['id'],
-      title: json['title'],
-      courtName: json['courtName'],
-      courtRate: json['courtRate'],
-      shuttleCockPrice: json['shuttleCockPrice'],
-      divideCostEqually: json['divideCostEqually'],
-      schedules: (json['schedules'] as List)
-          .map((s) => CourtSchedule.fromJson(s))
-          .toList(),
-      createdAt: DateTime.parse(json['createdAt']),
-      numberOfPlayers: json['numberOfPlayers'],
-    );
+  /// Total booked hours across all schedules (ignores negative/zero durations).
+  double _totalHours() {
+    if (schedules.isEmpty) return 0.0;
+    int totalMinutes = 0;
+    for (final s in schedules) {
+      final m = s.endTime.difference(s.startTime).inMinutes;
+      if (m > 0) totalMinutes += m;
+    }
+    return totalMinutes > 0 ? totalMinutes / 60.0 : 0.0;
   }
 }

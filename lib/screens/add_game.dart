@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/court_schedule.dart';
+import '../models/game.dart';
+import '../services/app_prefs.dart';
+
 
 class AddGameScreen extends StatefulWidget {
   const AddGameScreen({super.key});
@@ -28,13 +31,13 @@ class _AddGameScreenState extends State<AddGameScreen> {
   }
 
   Future<void> _loadDefaultValues() async {
-    // TODO: Load values from shared preferences
-    // For now using dummy default values
+    final d = await AppPrefs.loadDefaults();
+    if (!mounted) return;
     setState(() {
-      _courtNameController.text = "Default Court";
-      _courtRateController.text = "500";
-      _shuttleCockPriceController.text = "50";
-      _divideCourtEqually = true;
+      _courtNameController.text         = d.courtName;
+      _courtRateController.text         = d.courtRate.toStringAsFixed(0);   // or 2 decimals if you like
+      _shuttleCockPriceController.text  = d.shuttlecockPrice.toStringAsFixed(0);
+      _divideCourtEqually               = d.divideEqually;
     });
   }
 
@@ -48,78 +51,51 @@ class _AddGameScreenState extends State<AddGameScreen> {
   }
 
   Future<void> _selectSchedule(BuildContext context) async {
-    final TimeOfDay? startTime = await showTimePicker(
+    final startTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );
-    
-    if (startTime != null) {
-      // ignore: use_build_context_synchronously
-      final TimeOfDay? endTime = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay(
-          hour: startTime.hour + 1,
-          minute: startTime.minute,
-        ),
-      );
+    if (!mounted || startTime == null) return;
 
-      if (endTime != null) {
-        // Show dialog to input court number
-        // ignore: use_build_context_synchronously
-        final String? courtNumber = await showDialog<String>(
-          context: context,
-          builder: (BuildContext context) {
-            final controller = TextEditingController();
-            return AlertDialog(
-              title: const Text('Enter Court Number'),
-              content: TextField(
-                controller: controller,
-                decoration: const InputDecoration(
-                  labelText: 'Court Number',
-                  hintText: 'e.g., Court 1',
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(controller.text),
-                  child: const Text('Add'),
-                ),
-              ],
-            );
-          },
+    final endTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: (startTime.hour + 1) % 24,
+        minute: startTime.minute,
+      ),
+    );
+    if (!mounted || endTime == null) return;
+
+    final courtNumber = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        final controller = TextEditingController();
+        return AlertDialog(
+          title: const Text('Enter Court Number'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: 'Court Number',
+              hintText: 'e.g., Court 1',
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.of(ctx).pop(controller.text), child: const Text('Add')),
+          ],
         );
+      },
+    );
+    if (!mounted || courtNumber == null || courtNumber.isEmpty) return;
 
-        if (courtNumber != null && courtNumber.isNotEmpty) {
-          final now = DateTime.now();
-          final startDateTime = DateTime(
-            now.year,
-            now.month,
-            now.day,
-            startTime.hour,
-            startTime.minute,
-          );
-          final endDateTime = DateTime(
-            now.year,
-            now.month,
-            now.day,
-            endTime.hour,
-            endTime.minute,
-          );
-
-          setState(() {
-            _schedules.add(CourtSchedule(
-              courtNumber: courtNumber,
-              startTime: startDateTime,
-              endTime: endDateTime,
-            ));
-          });
-        }
-      }
-    }
+    final now = DateTime.now();
+    setState(() {
+      _schedules.add(CourtSchedule(
+        courtNumber: courtNumber,
+        startTime: DateTime(now.year, now.month, now.day, startTime.hour, startTime.minute),
+        endTime:   DateTime(now.year, now.month, now.day, endTime.hour, endTime.minute),
+      ));
+    });
   }
 
   void _removeSchedule(int index) {
@@ -132,9 +108,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
     return DateFormat('hh:mm a').format(dateTime);
   }
 
-  void _saveGame() {
+  Future<void> _saveGame() async {
     if (_formKey.currentState!.validate()) {
       if (_schedules.isEmpty) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Please add at least one court schedule'),
@@ -144,14 +121,26 @@ class _AddGameScreenState extends State<AddGameScreen> {
         return;
       }
 
-      // TODO: Save game data
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Game saved successfully'),
-          backgroundColor: Color(0xFF214D45),
-        ),
+      final newGame = Game(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: _titleController.text.trim().isEmpty
+            ? 'Untitled Game'
+            : _titleController.text.trim(),
+        courtName: _courtNameController.text.trim(),
+        courtRate: double.tryParse(_courtRateController.text.trim()) ?? 0,
+        shuttleCockPrice:
+            double.tryParse(_shuttleCockPriceController.text.trim()) ?? 0,
+        divideCostEqually: _divideCourtEqually,
+        schedules: List.from(_schedules),
+        createdAt: DateTime.now(),
       );
-      Navigator.pop(context);
+
+      // Debug
+      // ignore: avoid_print
+      print('✅ ADD: returning Game ${newGame.id}  title=${newGame.title}  cost=${newGame.totalCost}  schedules=${newGame.schedules.length}');
+
+      if (!mounted) return;
+      Navigator.pop(context, newGame);
     }
   }
 
