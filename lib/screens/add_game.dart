@@ -7,8 +7,12 @@ import '../services/app_prefs.dart';
 
 
 class AddGameScreen extends StatefulWidget {
-  const AddGameScreen({super.key});
+  const AddGameScreen({
+    super.key,
+    this.onSaved, 
+  });
 
+  final ValueChanged<Game>? onSaved; 
   @override
   State<AddGameScreen> createState() => _AddGameScreenState();
 }
@@ -20,6 +24,8 @@ class _AddGameScreenState extends State<AddGameScreen> {
   final _courtRateController = TextEditingController();
   final _shuttleCockPriceController = TextEditingController();
   bool _divideCourtEqually = true;
+  int _numberOfPlayers = 4; // Default to 4 players
+
   
   // List to store multiple court schedules
   final List<CourtSchedule> _schedules = [];
@@ -51,12 +57,23 @@ class _AddGameScreenState extends State<AddGameScreen> {
   }
 
   Future<void> _selectSchedule(BuildContext context) async {
+    // First, pick a date
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+    );
+    if (!mounted || selectedDate == null) return;
+
+    // Then pick start time
     final startTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );
     if (!mounted || startTime == null) return;
 
+    // Then pick end time
     final endTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(
@@ -66,6 +83,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
     );
     if (!mounted || endTime == null) return;
 
+    // Ask for court number
     final courtNumber = await showDialog<String>(
       context: context,
       builder: (ctx) {
@@ -88,12 +106,28 @@ class _AddGameScreenState extends State<AddGameScreen> {
     );
     if (!mounted || courtNumber == null || courtNumber.isEmpty) return;
 
-    final now = DateTime.now();
+    // Combine date and time
+    final startDateTime = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+      startTime.hour,
+      startTime.minute,
+    );
+    
+    final endDateTime = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+      endTime.hour,
+      endTime.minute,
+    );
+
     setState(() {
       _schedules.add(CourtSchedule(
         courtNumber: courtNumber,
-        startTime: DateTime(now.year, now.month, now.day, startTime.hour, startTime.minute),
-        endTime:   DateTime(now.year, now.month, now.day, endTime.hour, endTime.minute),
+        startTime: startDateTime,
+        endTime: endDateTime,
       ));
     });
   }
@@ -104,8 +138,8 @@ class _AddGameScreenState extends State<AddGameScreen> {
     });
   }
 
-  String _formatTimeOfDay(DateTime dateTime) {
-    return DateFormat('hh:mm a').format(dateTime);
+  String _formatDateTime(DateTime dateTime) {
+    return DateFormat('MMM d, y - hh:mm a').format(dateTime);
   }
 
   Future<void> _saveGame() async {
@@ -124,23 +158,56 @@ class _AddGameScreenState extends State<AddGameScreen> {
       final newGame = Game(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text.trim().isEmpty
-            ? 'Untitled Game'
+            ? null
             : _titleController.text.trim(),
         courtName: _courtNameController.text.trim(),
         courtRate: double.tryParse(_courtRateController.text.trim()) ?? 0,
-        shuttleCockPrice:
-            double.tryParse(_shuttleCockPriceController.text.trim()) ?? 0,
+        shuttleCockPrice: double.tryParse(_shuttleCockPriceController.text.trim()) ?? 0,
         divideCostEqually: _divideCourtEqually,
         schedules: List.from(_schedules),
         createdAt: DateTime.now(),
+        numberOfPlayers: _numberOfPlayers,
       );
 
       // Debug
-      // ignore: avoid_print
-      print('✅ ADD: returning Game ${newGame.id}  title=${newGame.title}  cost=${newGame.totalCost}  schedules=${newGame.schedules.length}');
+      print('✅ ADD: saving Game ${newGame.id}  title=${newGame.displayTitle}  cost=${newGame.totalCost}  schedules=${newGame.schedules.length}  players=${newGame.numberOfPlayers}');
+      print('🔍 onSaved callback exists: ${widget.onSaved != null}');
 
-      if (!mounted) return;
-      Navigator.pop(context, newGame);
+      // Check if we're in tab navigation or pushed navigation
+      final canPop = Navigator.of(context).canPop();
+      print('🔍 Can pop: $canPop');
+
+      // Always call the callback first (for tab navigation)
+      if (widget.onSaved != null) {
+        print('📤 Calling onSaved callback...');
+        widget.onSaved!(newGame);
+      }
+
+      // If this screen was pushed (e.g., from FAB in GameList), pop and return
+      if (canPop) {
+        print('⬅️ Popping and returning game...');
+        Navigator.of(context).pop(newGame);
+      } else {
+        // We're in tab navigation, clear the form and show success
+        print('🎯 In tab navigation, clearing form...');
+        _titleController.clear();
+        _courtNameController.clear();
+        setState(() {
+          _schedules.clear();
+        });
+        
+        // Reload defaults
+        await _loadDefaultValues();
+        
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Game saved successfully! Check the Games tab.'),
+            backgroundColor: Color(0xFF214D45),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -196,11 +263,11 @@ class _AddGameScreenState extends State<AddGameScreen> {
                       controller: _titleController,
                       decoration: const InputDecoration(
                         labelText: 'Game Title (Optional)',
-                        hintText: 'Enter game title or leave blank for default',
+                        hintText: 'Leave blank to use scheduled date',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.all(Radius.circular(12)),
                         ),
-                        prefixIcon: Icon(Icons.sports),
+                        prefixIcon: Icon(Icons.title),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -208,11 +275,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
                       controller: _courtNameController,
                       decoration: const InputDecoration(
                         labelText: 'Court Name',
-                        hintText: 'Enter court name',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.all(Radius.circular(12)),
                         ),
-                        prefixIcon: Icon(Icons.place),
+                        prefixIcon: Icon(Icons.sports_tennis),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
@@ -220,6 +286,67 @@ class _AddGameScreenState extends State<AddGameScreen> {
                         }
                         return null;
                       },
+                    ),
+                    const SizedBox(height: 16),
+                    // Number of Players Selector
+                    const Text(
+                      'Number of Players',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: List.generate(4, (index) {
+                        final playerCount = index + 1;
+                        return Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              right: index < 3 ? 8.0 : 0,
+                            ),
+                            child: ChoiceChip(
+                              label: Center(
+                                child: Text(
+                                  '$playerCount',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: _numberOfPlayers == playerCount
+                                        ? Colors.white
+                                        : const Color(0xFF214D45),
+                                  ),
+                                ),
+                              ),
+                              selected: _numberOfPlayers == playerCount,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _numberOfPlayers = playerCount;
+                                });
+                              },
+                              selectedColor: const Color(0xFF214D45),
+                              backgroundColor: Colors.grey.shade200,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: BorderSide(
+                                  color: _numberOfPlayers == playerCount
+                                      ? const Color(0xFF214D45)
+                                      : Colors.grey.shade300,
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Select between 1-4 players for this game',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                   ],
                 ),
@@ -288,7 +415,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
                             child: ListTile(
                               title: Text(schedule.courtNumber),
                               subtitle: Text(
-                                '${_formatTimeOfDay(schedule.startTime)} - ${_formatTimeOfDay(schedule.endTime)}',
+                                '${_formatDateTime(schedule.startTime)}\n${_formatDateTime(schedule.endTime)}',
                               ),
                               trailing: IconButton(
                                 icon: const Icon(Icons.delete),
@@ -361,12 +488,17 @@ class _AddGameScreenState extends State<AddGameScreen> {
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                       ],
-                      decoration: const InputDecoration(
-                        labelText: 'Shuttlecock Price',
-                        border: OutlineInputBorder(
+                      decoration: InputDecoration(
+                        labelText: 'Shuttlecock Price (Total)',
+                        border: const OutlineInputBorder(
                           borderRadius: BorderRadius.all(Radius.circular(12)),
                         ),
-                        prefixIcon: Icon(Icons.sports_baseball),
+                        prefixIcon: const Icon(Icons.sports_baseball),
+                        helperText: 'Total price will be divided among $_numberOfPlayers player(s)',
+                        helperStyle: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {

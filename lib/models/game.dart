@@ -6,10 +6,11 @@ class Game {
   final String? title;
   final String courtName;
   final double courtRate;          // rate per hour
-  final double shuttleCockPrice;   // fixed add-on
+  final double shuttleCockPrice;   // total price (will be divided by players)
   final bool divideCostEqually;    // kept for future use
   final List<CourtSchedule> schedules;
   final DateTime createdAt;
+  final int numberOfPlayers;
 
   Game({
     required this.id,
@@ -20,15 +21,21 @@ class Game {
     required this.divideCostEqually,
     required this.schedules,
     required this.createdAt,
+    this.numberOfPlayers = 4, // sensible default
   });
 
-  /// Sum of (courtRate * hours) for all valid schedules + shuttleCockPrice.
+  /// Sum of (courtRate * hours) for all valid schedules + (shuttleCockPrice / numberOfPlayers).
   /// Returns 0 for invalid values; never NaN/Infinity.
   double get totalCost {
     final hours = _totalHours();
-    final rate   = courtRate.isFinite && courtRate > 0 ? courtRate : 0.0;
-    final shuttle= shuttleCockPrice.isFinite && shuttleCockPrice > 0 ? shuttleCockPrice : 0.0;
-    final cost = rate * hours + shuttle;
+    final rate = courtRate.isFinite && courtRate > 0 ? courtRate : 0.0;
+    final shuttle = shuttleCockPrice.isFinite && shuttleCockPrice > 0 ? shuttleCockPrice : 0.0;
+    
+    // Divide shuttlecock price by number of players (ensure we don't divide by zero)
+    final players = numberOfPlayers > 0 ? numberOfPlayers : 1;
+    final shuttlePerPlayer = shuttle / players;
+    
+    final cost = rate * hours + shuttlePerPlayer;
     return (cost.isFinite && !cost.isNaN) ? cost : 0.0;
   }
 

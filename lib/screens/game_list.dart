@@ -8,10 +8,10 @@ class GameListScreen extends StatefulWidget {
   const GameListScreen({super.key});
 
   @override
-  State<GameListScreen> createState() => _GameListScreenState();
+  GameListScreenState createState() => GameListScreenState();
 }
 
-class _GameListScreenState extends State<GameListScreen> {
+class GameListScreenState extends State<GameListScreen> {
   final List<Game> _games = List.from(DummyGames.games);
   final TextEditingController _searchController = TextEditingController();
   List<Game> _filteredGames = [];
@@ -21,6 +21,19 @@ class _GameListScreenState extends State<GameListScreen> {
   );
   String _safeCurrency(double v) =>
     (!v.isFinite || v.isNaN) ? '₱0.00' : currencyFormat.format(v);
+
+  void addGame(Game g) {
+    setState(() {
+      _games.add(g);
+      final q = _searchController.text.toLowerCase();
+      _filteredGames = q.isEmpty
+          ? List.from(_games)
+          : _games.where((game) =>
+              game.displayTitle.toLowerCase().contains(q) ||
+              game.courtName.toLowerCase().contains(q),
+            ).toList();
+    });
+  }
 
   @override
   void initState() {
@@ -308,24 +321,24 @@ class _GameListScreenState extends State<GameListScreen> {
                                               ],
                                             ),
                                           ),
-                                          // Container(
-                                          //   padding: const EdgeInsets.symmetric(
-                                          //     horizontal: 12,
-                                          //     vertical: 6,
-                                          //   ),
-                                          //   decoration: BoxDecoration(
-                                          //     color: const Color(0xFF214D45),
-                                          //     borderRadius: BorderRadius.circular(20),
-                                          //   ),
-                                          //   child: Text(
-                                          //     '${game.numberOfPlayers} Players',
-                                          //     style: const TextStyle(
-                                          //       color: Colors.white,
-                                          //       fontSize: 12,
-                                          //       fontWeight: FontWeight.w500,
-                                          //     ),
-                                          //   ),
-                                          // ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF214D45),
+                                              borderRadius: BorderRadius.circular(20),
+                                            ),
+                                            child: Text(
+                                              '${game.numberOfPlayers} Players',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
                                         ],
                                       ),
                                       const SizedBox(height: 12),
