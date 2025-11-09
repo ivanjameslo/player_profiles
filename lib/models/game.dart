@@ -26,20 +26,29 @@ class Game {
 
   /// Sum of (courtRate * hours) for all valid schedules + (shuttleCockPrice / numberOfPlayers).
   /// Returns 0 for invalid values; never NaN/Infinity.
+  /// --- Main cost computation ---
   double get totalCost {
     final hours = _totalHours();
     final rate = courtRate.isFinite && courtRate > 0 ? courtRate : 0.0;
     final shuttle = shuttleCockPrice.isFinite && shuttleCockPrice > 0 ? shuttleCockPrice : 0.0;
-    
-    // Divide shuttlecock price by number of players (ensure we don't divide by zero)
     final players = numberOfPlayers > 0 ? numberOfPlayers : 1;
-    final shuttlePerPlayer = shuttle / players;
-    
-    final cost = rate * hours + shuttlePerPlayer;
+
+    final courtTotal = rate * (hours == 0 ? 1 : hours);
+    final totalGameCost = courtTotal + shuttle;
+
+    double cost;
+    if (divideCostEqually) {
+      // divide both court + shuttle among players
+      cost = totalGameCost / players;
+    } else {
+      // only shuttle is divided, court stays whole
+      cost = courtTotal + (shuttle / players);
+    }
+
     return (cost.isFinite && !cost.isNaN) ? cost : 0.0;
   }
 
-  /// Display title: explicit title if set; otherwise earliest schedule date; otherwise fallback.
+  /// --- Display Title ---
   String get displayTitle {
     if (title != null && title!.trim().isNotEmpty) return title!.trim();
     if (schedules.isNotEmpty) {
@@ -51,9 +60,7 @@ class Game {
     return 'Untitled Game';
   }
 
-  // ------- Helpers -------
-
-  /// Total booked hours across all schedules (ignores negative/zero durations).
+  /// --- Helper: total booked hours across all schedules ---
   double _totalHours() {
     if (schedules.isEmpty) return 0.0;
     int totalMinutes = 0;

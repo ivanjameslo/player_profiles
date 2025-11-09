@@ -9,10 +9,12 @@ import '../services/app_prefs.dart';
 class AddGameScreen extends StatefulWidget {
   const AddGameScreen({
     super.key,
-    this.onSaved, 
+    this.onSaved,
+    this.initialGame,
   });
 
-  final ValueChanged<Game>? onSaved; 
+  final ValueChanged<Game>? onSaved;
+  final Game? initialGame;
   @override
   State<AddGameScreen> createState() => _AddGameScreenState();
 }
@@ -33,7 +35,31 @@ class _AddGameScreenState extends State<AddGameScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDefaultValues();
+    if (widget.initialGame != null) {
+      _populateFromGame(widget.initialGame!);
+    } else {
+      _loadDefaultValues();
+    }
+  }
+
+  void _populateFromGame(Game game) {
+    _titleController.text = game.title ?? '';
+    _courtNameController.text = game.courtName;
+    _courtRateController.text = game.courtRate.toStringAsFixed(2);
+    _shuttleCockPriceController.text = game.shuttleCockPrice.toStringAsFixed(2);
+    _divideCourtEqually = game.divideCostEqually;
+    _numberOfPlayers = game.numberOfPlayers;
+    _schedules
+      ..clear()
+      ..addAll(
+        game.schedules.map(
+          (schedule) => CourtSchedule(
+            courtNumber: schedule.courtNumber,
+            startTime: schedule.startTime,
+            endTime: schedule.endTime,
+          ),
+        ),
+      );
   }
 
   Future<void> _loadDefaultValues() async {
@@ -155,8 +181,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
         return;
       }
 
+      final now = DateTime.now();
+      final existingGame = widget.initialGame;
       final newGame = Game(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: existingGame?.id ?? now.millisecondsSinceEpoch.toString(),
         title: _titleController.text.trim().isEmpty
             ? null
             : _titleController.text.trim(),
@@ -165,12 +193,14 @@ class _AddGameScreenState extends State<AddGameScreen> {
         shuttleCockPrice: double.tryParse(_shuttleCockPriceController.text.trim()) ?? 0,
         divideCostEqually: _divideCourtEqually,
         schedules: List.from(_schedules),
-        createdAt: DateTime.now(),
+        createdAt: existingGame?.createdAt ?? now,
         numberOfPlayers: _numberOfPlayers,
       );
 
+      final isEditing = existingGame != null;
+
       // Debug
-      print('✅ ADD: saving Game ${newGame.id}  title=${newGame.displayTitle}  cost=${newGame.totalCost}  schedules=${newGame.schedules.length}  players=${newGame.numberOfPlayers}');
+      print('✅ ${isEditing ? 'EDIT' : 'ADD'}: saving Game ${newGame.id}  title=${newGame.displayTitle}  cost=${newGame.totalCost}  schedules=${newGame.schedules.length}  players=${newGame.numberOfPlayers}');
       print('🔍 onSaved callback exists: ${widget.onSaved != null}');
 
       // Check if we're in tab navigation or pushed navigation
@@ -183,31 +213,36 @@ class _AddGameScreenState extends State<AddGameScreen> {
         widget.onSaved!(newGame);
       }
 
-      // If this screen was pushed (e.g., from FAB in GameList), pop and return
       if (canPop) {
         print('⬅️ Popping and returning game...');
         Navigator.of(context).pop(newGame);
-      } else {
-        // We're in tab navigation, clear the form and show success
-        print('🎯 In tab navigation, clearing form...');
-        _titleController.clear();
-        _courtNameController.clear();
-        setState(() {
-          _schedules.clear();
-        });
-        
-        // Reload defaults
-        await _loadDefaultValues();
-        
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Game saved successfully! Check the Games tab.'),
-            backgroundColor: Color(0xFF214D45),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        return;
       }
+      if (isEditing) {
+        print('⚠️ Editing without navigation stack, attempting maybePop...');
+        await Navigator.of(context).maybePop(newGame);
+        return;
+      }
+
+      // We're in tab navigation, clear the form and show success
+      print('🎯 In tab navigation, clearing form...');
+      _titleController.clear();
+      _courtNameController.clear();
+      setState(() {
+        _schedules.clear();
+      });
+      
+      // Reload defaults
+      await _loadDefaultValues();
+      
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Game saved successfully! Check the Games tab.'),
+          backgroundColor: Color(0xFF214D45),
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
 
@@ -216,9 +251,9 @@ class _AddGameScreenState extends State<AddGameScreen> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text(
-          'Add New Game',
-          style: TextStyle(
+        title: Text(
+          widget.initialGame == null ? 'Add New Game' : 'Edit Game',
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -554,7 +589,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text('Save Game'),
+                      child: Text(widget.initialGame == null ? 'Save Game' : 'Update Game'),
                     ),
                   ),
                 ],

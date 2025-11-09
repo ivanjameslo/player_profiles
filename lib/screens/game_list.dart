@@ -22,16 +22,20 @@ class GameListScreenState extends State<GameListScreen> {
   String _safeCurrency(double v) =>
     (!v.isFinite || v.isNaN) ? '₱0.00' : currencyFormat.format(v);
 
+  void _refreshFilteredGames() {
+    final query = _searchController.text.toLowerCase();
+    _filteredGames = query.isEmpty
+        ? List.from(_games)
+        : _games.where((game) {
+            return game.displayTitle.toLowerCase().contains(query) ||
+                game.courtName.toLowerCase().contains(query);
+          }).toList();
+  }
+
   void addGame(Game g) {
     setState(() {
       _games.add(g);
-      final q = _searchController.text.toLowerCase();
-      _filteredGames = q.isEmpty
-          ? List.from(_games)
-          : _games.where((game) =>
-              game.displayTitle.toLowerCase().contains(q) ||
-              game.courtName.toLowerCase().contains(q),
-            ).toList();
+      _refreshFilteredGames();
     });
   }
 
@@ -49,16 +53,8 @@ class GameListScreenState extends State<GameListScreen> {
   }
 
   void _filterGames() {
-    final query = _searchController.text.toLowerCase();
     setState(() {
-      if (query.isEmpty) {
-        _filteredGames = List.from(_games);
-      } else {
-        _filteredGames = _games.where((game) {
-          return game.displayTitle.toLowerCase().contains(query) ||
-              game.courtName.toLowerCase().contains(query);
-        }).toList();
-      }
+      _refreshFilteredGames();
     });
   }
 
@@ -106,96 +102,200 @@ class GameListScreenState extends State<GameListScreen> {
     }
   }
 
-  void _viewGameDetails(Game game) {
-  showModalBottomSheet(
-    context: context,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    backgroundColor: Colors.white,
-    isScrollControlled: true,
-    builder: (BuildContext context) {
-      final dateFormat = DateFormat('MMM d, y');
-      final timeFormat = DateFormat('h:mm a');
-      final schedules = game.schedules.map((s) {
-        return '${dateFormat.format(s.startTime)} '
-               '${timeFormat.format(s.startTime)} - '
-               '${timeFormat.format(s.endTime)}';
-      }).toList();
+  Future<void> _viewGameDetails(Game game) async {
+    final shouldEdit = await showModalBottomSheet<bool>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        final dateFormat = DateFormat('MMM d, y');
+        final timeFormat = DateFormat('h:mm a');
+        final schedules = game.schedules.map((s) {
+          return '${dateFormat.format(s.startTime)} '
+                 '${timeFormat.format(s.startTime)} - '
+                 '${timeFormat.format(s.endTime)}';
+        }).toList();
 
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 50,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 50,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            Text(
-              game.displayTitle,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF214D45),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            _buildDetailRow('Court Name', game.courtName),
-            // _buildDetailRow('Players', '${game.numberOfPlayers}'),
-            _buildDetailRow('Total Cost', currencyFormat.format(game.totalCost)),
-            const SizedBox(height: 12),
-
-            const Text(
-              'Schedules',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 6),
-
-            ...schedules.map(
-              (s) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  children: [
-                    const Icon(Icons.schedule, size: 16, color: Colors.grey),
-                    const SizedBox(width: 8),
-                    Text(s, style: const TextStyle(fontSize: 14)),
-                  ],
+              Text(
+                game.displayTitle,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF214D45),
                 ),
               ),
-            ),
+              const SizedBox(height: 16),
 
-            const SizedBox(height: 20),
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close),
-                label: const Text('Close'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF214D45),
-                  foregroundColor: Colors.white,
+              _buildDetailRow('Court Name', game.courtName),
+
+              const SizedBox(height: 12),
+              const Text(
+                'Computation',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Color(0xFF214D45),
                 ),
               ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
+              const SizedBox(height: 6),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Court Rate:'),
+                  Text('₱${game.courtRate.toStringAsFixed(2)}'),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Shuttlecock:'),
+                  Text('₱${game.shuttleCockPrice.toStringAsFixed(2)}'),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Total:',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    '₱${(game.courtRate + game.shuttleCockPrice).toStringAsFixed(2)}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              const Divider(height: 16),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    game.divideCostEqually
+                        ? 'Total per Player'
+                        : 'Total Game Cost',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Color(0xFF214D45),
+                    ),
+                  ),
+                  Text(
+                    currencyFormat.format(game.totalCost),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Color(0xFF214D45),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              
+              const Text(
+                'Schedules',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 6),
+
+              ...schedules.map(
+                (s) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.schedule, size: 16, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Text(s, style: const TextStyle(fontSize: 14)),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(context, true),
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Edit'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.pop(context, false),
+                      icon: const Icon(Icons.close),
+                      label: const Text('Close'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF214D45),
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (!mounted || shouldEdit != true) return;
+    await _editGame(game);
+  }
+
+  Future<void> _editGame(Game game) async {
+    final updatedGame = await Navigator.of(context).push<Game>(
+      MaterialPageRoute(
+        builder: (_) => AddGameScreen(initialGame: game),
+        fullscreenDialog: true,
+      ),
+    );
+
+    if (!mounted || updatedGame == null) return;
+
+    setState(() {
+      final index = _games.indexWhere((g) => g.id == updatedGame.id);
+      if (index != -1) {
+        _games[index] = updatedGame;
+      } else {
+        _games.add(updatedGame);
+      }
+      _refreshFilteredGames();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Game updated'),
+        backgroundColor: Color(0xFF214D45),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -352,12 +452,28 @@ class GameListScreenState extends State<GameListScreen> {
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
-                                          Text(
-                                            _safeCurrency(game.totalCost),
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF214D45),
+                                          RichText(
+                                            text: TextSpan(
+                                              children: [
+                                                TextSpan(
+                                                  text: _safeCurrency(game.totalCost),
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Color(0xFF214D45),
+                                                  ),
+                                                ),
+                                                if (game.divideCostEqually) ...[
+                                                  const TextSpan(
+                                                    text: ' per player',
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      color: Colors.grey,
+                                                      fontWeight: FontWeight.w400,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
                                             ),
                                           ),
                                         ],
@@ -413,14 +529,7 @@ class GameListScreenState extends State<GameListScreen> {
 
           setState(() {
             _games.add(newGame);
-
-            final q = _searchController.text.toLowerCase();
-            _filteredGames = q.isEmpty
-                ? List.from(_games)
-                : _games.where((g) =>
-                    g.displayTitle.toLowerCase().contains(q) ||
-                    g.courtName.toLowerCase().contains(q),
-                  ).toList();
+            _refreshFilteredGames();
           });
 
           ScaffoldMessenger.of(context).showSnackBar(
