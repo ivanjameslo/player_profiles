@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 import 'court_schedule.dart';
+import 'profile_item.dart';
 
 class Game {
   final String id;
@@ -10,7 +11,7 @@ class Game {
   final bool divideCostEqually;    // kept for future use
   final List<CourtSchedule> schedules;
   final DateTime createdAt;
-  final int numberOfPlayers;
+  final List<ProfileItem> players;
 
   Game({
     required this.id,
@@ -21,17 +22,20 @@ class Game {
     required this.divideCostEqually,
     required this.schedules,
     required this.createdAt,
-    this.numberOfPlayers = 4, // sensible default
+    this.players = const [],
   });
 
-  /// Sum of (courtRate * hours) for all valid schedules + (shuttleCockPrice / numberOfPlayers).
+  /// Count of selected players, defaults to 1 to avoid divide-by-zero when empty.
+  int get playerCount => players.isNotEmpty ? players.length : 1;
+
+  /// Sum of (courtRate * hours) for all valid schedules + (shuttleCockPrice / playerCount).
   /// Returns 0 for invalid values; never NaN/Infinity.
   /// --- Main cost computation ---
   double get totalCost {
     final hours = _totalHours();
     final rate = courtRate.isFinite && courtRate > 0 ? courtRate : 0.0;
     final shuttle = shuttleCockPrice.isFinite && shuttleCockPrice > 0 ? shuttleCockPrice : 0.0;
-    final players = numberOfPlayers > 0 ? numberOfPlayers : 1;
+    final splitCount = playerCount > 0 ? playerCount : 1;
 
     final courtTotal = rate * (hours == 0 ? 1 : hours);
     final totalGameCost = courtTotal + shuttle;
@@ -39,10 +43,10 @@ class Game {
     double cost;
     if (divideCostEqually) {
       // divide both court + shuttle among players
-      cost = totalGameCost / players;
+      cost = totalGameCost / splitCount;
     } else {
       // only shuttle is divided, court stays whole
-      cost = courtTotal + (shuttle / players);
+      cost = courtTotal + (shuttle / splitCount);
     }
 
     return (cost.isFinite && !cost.isNaN) ? cost : 0.0;

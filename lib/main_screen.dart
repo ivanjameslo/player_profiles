@@ -34,9 +34,7 @@ class _MainScreenState extends State<MainScreen> {
     const UserSettingsScreen(),
     AddGameScreen(
       onSaved: (game) {
-        // insert into the list
         _gamesKey.currentState?.addGame(game);
-        // jump to Games tab
         setState(() => _selectedIndex = 3);
       },
     ),

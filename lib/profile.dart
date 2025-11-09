@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'new_profile.dart';
 import 'edit_profile.dart';
 import 'models/profile_item.dart';
-import 'data/dummy_profiles.dart';
+import 'services/player_store.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -13,35 +13,48 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final List<ProfileItem> _profiles = List.from(DummyProfiles.profiles);
+  late final PlayerStore _playerStore;
+  List<ProfileItem> _profiles = [];
   final TextEditingController _searchController = TextEditingController();
   List<ProfileItem> _filteredProfiles = [];
 
   @override
   void initState() {
     super.initState();
+    _playerStore = PlayerStore();
+    _profiles = List.from(_playerStore.players);
     _filteredProfiles = List.from(_profiles);
     _searchController.addListener(_filterProfiles);
+    _playerStore.addListener(_handlePlayerStoreChanged);
   }
 
   @override
   void dispose() {
+    _playerStore.removeListener(_handlePlayerStoreChanged);
     _searchController.dispose();
     super.dispose();
   }
 
-  void _filterProfiles() {
-    final query = _searchController.text.toLowerCase();
+  void _handlePlayerStoreChanged() {
+    if (!mounted) return;
     setState(() {
-      if (query.isEmpty) {
-        _filteredProfiles = List.from(_profiles);
-      } else {
-        _filteredProfiles = _profiles.where((profile) {
-          return profile.nickname.toLowerCase().contains(query) ||
-              profile.fullName.toLowerCase().contains(query);
-        }).toList();
-      }
+      _profiles = List.from(_playerStore.players);
+      _applyFilter();
     });
+  }
+
+  void _applyFilter() {
+    final query = _searchController.text.toLowerCase();
+    _filteredProfiles = query.isEmpty
+        ? List.from(_profiles)
+        : _profiles.where((profile) {
+            return profile.nickname.toLowerCase().contains(query) ||
+                profile.fullName.toLowerCase().contains(query);
+          }).toList();
+  }
+
+  void _filterProfiles() {
+    setState(_applyFilter);
   }
 
   // Avatar colors based on skill level (darker = more expert)
@@ -101,31 +114,15 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _addProfile(ProfileItem profile) {
     final duplicateProfile = _findDuplicateProfile(profile);
     if (duplicateProfile != null) {
-      _showDuplicateDialog(duplicateProfile, profile);
+      _showDuplicateDialog(duplicateProfile);
       return false; // Indicate failure due to duplicate
     }
     
-    setState(() {
-      _profiles.add(profile);
-      _filterProfiles(); // Refresh filtered list
-    });
+    _playerStore.add(profile);
     return true; // Indicate success
   }
 
-  void _showDuplicateDialog(ProfileItem existingProfile, ProfileItem newProfile) {
-    // Determine which field is duplicated
-    String duplicateField = '';
-    
-    if (existingProfile.nickname.toLowerCase() == newProfile.nickname.toLowerCase()) {
-      duplicateField = 'Nickname';
-    } else if (existingProfile.fullName.toLowerCase() == newProfile.fullName.toLowerCase()) {
-      duplicateField = 'Full Name';
-    } else if (existingProfile.contactNumber == newProfile.contactNumber) {
-      duplicateField = 'Contact Number';
-    } else if (existingProfile.email.toLowerCase() == newProfile.email.toLowerCase()) {
-      duplicateField = 'Email Address';
-    }
-
+  void _showDuplicateDialog(ProfileItem existingProfile) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -272,20 +269,11 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _updateProfile(ProfileItem oldProfile, ProfileItem updatedProfile) {
-    setState(() {
-      final index = _profiles.indexWhere((p) => p.id == oldProfile.id);
-      if (index != -1) {
-        _profiles[index] = updatedProfile;
-        _filterProfiles(); // Refresh filtered list
-      }
-    });
+    _playerStore.update(updatedProfile);
   }
 
   void _deleteProfile(ProfileItem profile) {
-    setState(() {
-      _profiles.remove(profile);
-      _filterProfiles(); // Refresh filtered list
-    });
+    _playerStore.remove(profile);
   }
 
   void _openEditProfileModal(ProfileItem profile) {

@@ -97,7 +97,7 @@ class GameListScreenState extends State<GameListScreen> {
     if (shouldDelete == true) {
       setState(() {
         _games.remove(game);
-        _filterGames();
+        _refreshFilteredGames();
       });
     }
   }
@@ -113,11 +113,6 @@ class GameListScreenState extends State<GameListScreen> {
       builder: (BuildContext context) {
         final dateFormat = DateFormat('MMM d, y');
         final timeFormat = DateFormat('h:mm a');
-        final schedules = game.schedules.map((s) {
-          return '${dateFormat.format(s.startTime)} '
-                 '${timeFormat.format(s.startTime)} - '
-                 '${timeFormat.format(s.endTime)}';
-        }).toList();
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
@@ -159,57 +154,76 @@ class GameListScreenState extends State<GameListScreen> {
               ),
               const SizedBox(height: 6),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Court Rate:'),
-                  Text('₱${game.courtRate.toStringAsFixed(2)}'),
-                ],
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Shuttlecock:'),
-                  Text('₱${game.shuttleCockPrice.toStringAsFixed(2)}'),
-                ],
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Total:',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  Text(
-                    '₱${(game.courtRate + game.shuttleCockPrice).toStringAsFixed(2)}',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-              const Divider(height: 16),
+              // ✅ Compute total hours played across all schedules
+              Builder(
+                builder: (context) {
+                  double totalHours = 0.0;
+                  for (final s in game.schedules) {
+                    final minutes = s.endTime.difference(s.startTime).inMinutes;
+                    if (minutes > 0) totalHours += minutes / 60.0;
+                  }
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    game.divideCostEqually
-                        ? 'Total per Player'
-                        : 'Total Game Cost',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Color(0xFF214D45),
-                    ),
-                  ),
-                  Text(
-                    currencyFormat.format(game.totalCost),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Color(0xFF214D45),
-                    ),
-                  ),
-                ],
+                  final courtTotal = game.courtRate * totalHours;
+                  final total = courtTotal + game.shuttleCockPrice;
+
+                  return Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Court Rate (₱${game.courtRate.toStringAsFixed(0)} × ${totalHours.toStringAsFixed(1)} hrs):',
+                          ),
+                          Text('₱${courtTotal.toStringAsFixed(2)}'),
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Shuttlecock:'),
+                          Text('₱${game.shuttleCockPrice.toStringAsFixed(2)}'),
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Total:',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            '₱${total.toStringAsFixed(2)}',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            game.divideCostEqually
+                                ? 'Total per Player'
+                                : 'Total Game Cost',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Color(0xFF214D45),
+                            ),
+                          ),
+                          Text(
+                            currencyFormat.format(game.totalCost),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Color(0xFF214D45),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 12),
               
@@ -222,43 +236,108 @@ class GameListScreenState extends State<GameListScreen> {
               ),
               const SizedBox(height: 6),
 
-              ...schedules.map(
-                (s) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.schedule, size: 16, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Text(s, style: const TextStyle(fontSize: 14)),
-                    ],
-                  ),
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: game.schedules.map((s) {
+                  final date = dateFormat.format(s.startTime);
+                  final start = timeFormat.format(s.startTime);
+                  final end = timeFormat.format(s.endTime);
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.schedule, size: 16, color: Colors.grey),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Court ${s.courtNumber} • $date $start - $end',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
               ),
 
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.pop(context, true),
-                      icon: const Icon(Icons.edit),
-                      label: const Text('Edit'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => Navigator.pop(context, false),
-                      icon: const Icon(Icons.close),
-                      label: const Text('Close'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF214D45),
-                        foregroundColor: Colors.white,
+            if (game.players.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Players',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 6),
+              ...game.players.map(
+                (player) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  leading: CircleAvatar(
+                    backgroundColor:
+                        const Color(0xFF214D45).withOpacity(0.1),
+                    child: Text(
+                      player.nickname.isNotEmpty
+                          ? player.nickname[0].toUpperCase()
+                          : '?',
+                      style: const TextStyle(
+                        color: Color(0xFF214D45),
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                ],
+                  title: Text(
+                    player.nickname,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    player.fullName,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
               ),
+            ] else ...[
+              const SizedBox(height: 16),
+              Text(
+                'No players added yet',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(context, false),
+                    icon: const Icon(Icons.close),
+                    label: const Text('Close'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.pop(context, true),
+                    icon: const Icon(Icons.edit),
+                    label: const Text('Edit'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF214D45),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             ],
           ),
         );
@@ -431,7 +510,7 @@ class GameListScreenState extends State<GameListScreen> {
                                               borderRadius: BorderRadius.circular(20),
                                             ),
                                             child: Text(
-                                              '${game.numberOfPlayers} Players',
+                                              '${game.playerCount} Players',
                                               style: const TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 12,

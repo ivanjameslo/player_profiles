@@ -1,9 +1,11 @@
-import '../models/game.dart';
+import '../data/dummy_profiles.dart';
 import '../models/court_schedule.dart';
+import '../models/game.dart';
 
 class DummyGames {
   static List<Game> get games {
     final now = DateTime.now();
+    final profiles = DummyProfiles.profiles;
     return [
       Game(
         id: 'game_001',
@@ -25,6 +27,7 @@ class DummyGames {
           ),
         ],
         createdAt: now.subtract(const Duration(days: 2)),
+        players: profiles.take(4).toList(),
       ),
       Game(
         id: 'game_002',
@@ -40,6 +43,7 @@ class DummyGames {
           ),
         ],
         createdAt: now.subtract(const Duration(days: 1)),
+        players: profiles.sublist(1, 5),
       ),
       Game(
         id: 'game_003',
@@ -56,6 +60,7 @@ class DummyGames {
           ),
         ],
         createdAt: now,
+        players: profiles.sublist(2, 4),
       ),
     ];
   }
