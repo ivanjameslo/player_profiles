@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../data/dummy_games.dart';
+// import '../data/dummy_games.dart';
 import '../models/game.dart';
 import 'add_game.dart';
+import '../services/game_store.dart';
+
 
 class GameListScreen extends StatefulWidget {
   const GameListScreen({super.key});
@@ -12,7 +14,8 @@ class GameListScreen extends StatefulWidget {
 }
 
 class GameListScreenState extends State<GameListScreen> {
-  final List<Game> _games = List.from(DummyGames.games);
+  final GameStore _gameStore = GameStore();
+  List<Game> get _games => _gameStore.games;
   final TextEditingController _searchController = TextEditingController();
   List<Game> _filteredGames = [];
   final currencyFormat = NumberFormat.currency(
@@ -34,7 +37,7 @@ class GameListScreenState extends State<GameListScreen> {
 
   void addGame(Game g) {
     setState(() {
-      _games.add(g);
+      _gameStore.upsertGame(g);
       _refreshFilteredGames();
     });
   }
@@ -96,7 +99,7 @@ class GameListScreenState extends State<GameListScreen> {
 
     if (shouldDelete == true) {
       setState(() {
-        _games.remove(game);
+        _gameStore.removeGame(game.id);
         _refreshFilteredGames();
       });
     }
@@ -359,14 +362,10 @@ class GameListScreenState extends State<GameListScreen> {
     if (!mounted || updatedGame == null) return;
 
     setState(() {
-      final index = _games.indexWhere((g) => g.id == updatedGame.id);
-      if (index != -1) {
-        _games[index] = updatedGame;
-      } else {
-        _games.add(updatedGame);
-      }
+      _gameStore.upsertGame(updatedGame);
       _refreshFilteredGames();
     });
+
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -607,7 +606,7 @@ class GameListScreenState extends State<GameListScreen> {
           if (!mounted || newGame == null) return;
 
           setState(() {
-            _games.add(newGame);
+            _gameStore.upsertGame(newGame);
             _refreshFilteredGames();
           });
 

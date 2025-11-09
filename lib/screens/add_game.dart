@@ -6,7 +6,7 @@ import '../models/game.dart';
 import '../models/profile_item.dart';
 import '../services/app_prefs.dart';
 import '../services/player_store.dart';
-
+import '../services/game_store.dart';
 
 class AddGameScreen extends StatefulWidget {
   const AddGameScreen({
@@ -31,6 +31,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
   final List<CourtSchedule> _schedules = [];
   final List<ProfileItem> _selectedPlayers = [];
   late final PlayerStore _playerStore;
+  late final GameStore _gameStore;
 
   List<ProfileItem> get _availablePlayers => _playerStore.players;
 
@@ -71,6 +72,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
   void initState() {
     super.initState();
     _playerStore = PlayerStore();
+    _gameStore = GameStore();
     _playerStore.addListener(_handlePlayerStoreChange);
     if (widget.initialGame != null) {
       _populateFromGame(widget.initialGame!);
@@ -290,6 +292,31 @@ class _AddGameScreenState extends State<AddGameScreen> {
           createdAt: existingGame?.createdAt ?? now,
           players: List.unmodifiable(_selectedPlayers),
         );
+
+        // --- ✅ GLOBAL VALIDATION: Prevent overlapping games on same court ---
+        final conflict = _gameStore.findConflict(
+          newGame,
+          excludeGameId: existingGame?.id,
+        );
+
+        if (conflict != null) {
+          final dateFormat = DateFormat('MMM d, y h:mm a');
+          final message =
+              'Court ${conflict.newSchedule.courtNumber} is already booked '
+              'from ${dateFormat.format(conflict.existingSchedule.startTime)} '
+              'to ${dateFormat.format(conflict.existingSchedule.endTime)} '
+              '(${conflict.existingGame.displayTitle}).';
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          return; // 🚫 stop saving the game
+        }
 
         final isEditing = existingGame != null;
 
