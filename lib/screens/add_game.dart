@@ -28,6 +28,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
   final _courtRateController = TextEditingController();
   final _shuttleCockPriceController = TextEditingController();
   bool _divideCourtEqually = true;
+  String? _shuttleAccidentPlayerId;
   final List<CourtSchedule> _schedules = [];
   final List<ProfileItem> _selectedPlayers = [];
   late final PlayerStore _playerStore;
@@ -38,8 +39,29 @@ class _AddGameScreenState extends State<AddGameScreen> {
   bool get _hasReachedPlayerLimit => _selectedPlayers.length >= 4;
   int get _playerShareCount =>
       _selectedPlayers.isEmpty ? 1 : _selectedPlayers.length;
-  String get _playerHelperText =>
-      'Total price will be divided among $_playerShareCount player(s)';
+  String? get _validChargePlayerId {
+    if (_shuttleAccidentPlayerId == null) return null;
+    final exists = _selectedPlayers.any((p) => p.id == _shuttleAccidentPlayerId);
+    return exists ? _shuttleAccidentPlayerId : null;
+  }
+  String get _shuttleHelperText {
+    if (_selectedPlayers.isEmpty) {
+      return 'Select players to split the shuttlecock cost';
+    }
+    final chargeId = _validChargePlayerId;
+    if (chargeId == null) {
+      return 'Shuttlecock cost splits among $_playerShareCount player(s)';
+    }
+    ProfileItem? chargedPlayer;
+    for (final player in _selectedPlayers) {
+      if (player.id == chargeId) {
+        chargedPlayer = player;
+        break;
+      }
+    }
+    final name = chargedPlayer?.nickname ?? 'Selected player';
+    return '$name will shoulder the full shuttlecock cost';
+  }
 
   void _handlePlayerSelection(ProfileItem player, bool shouldSelect) {
     final alreadySelected =
@@ -64,6 +86,9 @@ class _AddGameScreenState extends State<AddGameScreen> {
         _selectedPlayers.add(player);
       } else {
         _selectedPlayers.removeWhere((p) => p.id == player.id);
+        if (_shuttleAccidentPlayerId == player.id) {
+          _shuttleAccidentPlayerId = null;
+        }
       }
     });
   }
@@ -86,6 +111,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
     final availableIds = _playerStore.players.map((p) => p.id).toSet();
     setState(() {
       _selectedPlayers.removeWhere((p) => !availableIds.contains(p.id));
+      if (_shuttleAccidentPlayerId != null &&
+          !availableIds.contains(_shuttleAccidentPlayerId)) {
+        _shuttleAccidentPlayerId = null;
+      }
     });
   }
 
@@ -95,6 +124,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
     _courtRateController.text = game.courtRate.toStringAsFixed(2);
     _shuttleCockPriceController.text = game.shuttleCockPrice.toStringAsFixed(2);
     _divideCourtEqually = game.divideCostEqually;
+    _shuttleAccidentPlayerId = game.shuttlecockChargedPlayerId;
     _selectedPlayers
       ..clear()
       ..addAll(game.players);
@@ -119,6 +149,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
       _courtRateController.text         = d.courtRate.toStringAsFixed(0);   // or 2 decimals if you like
       _shuttleCockPriceController.text  = d.shuttlecockPrice.toStringAsFixed(0);
       _divideCourtEqually               = d.divideEqually;
+      _shuttleAccidentPlayerId          = null;
     });
   }
 
@@ -279,6 +310,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
 
         final now = DateTime.now();
         final existingGame = widget.initialGame;
+        final chargePlayerId = _validChargePlayerId;
         final newGame = Game(
           id: existingGame?.id ?? now.millisecondsSinceEpoch.toString(),
           title: _titleController.text.trim().isEmpty
@@ -288,6 +320,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
           courtRate: double.tryParse(_courtRateController.text.trim()) ?? 0,
           shuttleCockPrice: double.tryParse(_shuttleCockPriceController.text.trim()) ?? 0,
           divideCostEqually: _divideCourtEqually,
+          shuttlecockChargedPlayerId: chargePlayerId,
           schedules: List.from(_schedules),
           createdAt: existingGame?.createdAt ?? now,
           players: List.unmodifiable(_selectedPlayers),
@@ -715,7 +748,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
                           borderRadius: BorderRadius.all(Radius.circular(12)),
                         ),
                         prefixIcon: const Icon(Icons.sports_baseball),
-                        helperText: _playerHelperText,
+                        helperText: _shuttleHelperText,
                         helperStyle: TextStyle(
                           color: Colors.grey.shade600,
                           fontSize: 12,
@@ -742,6 +775,37 @@ class _AddGameScreenState extends State<AddGameScreen> {
                         });
                       },
                       activeColor: const Color(0xFF214D45),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String?>(
+                      value: _validChargePlayerId,
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('Divide shuttlecock equally'),
+                        ),
+                        ..._selectedPlayers.map(
+                          (player) => DropdownMenuItem<String?>(
+                            value: player.id,
+                            child: Text('Charge ${player.nickname}'),
+                          ),
+                        ),
+                      ],
+                      onChanged: _selectedPlayers.isEmpty
+                          ? null
+                          : (value) {
+                              setState(() {
+                                _shuttleAccidentPlayerId = value;
+                              });
+                            },
+                      decoration: const InputDecoration(
+                        labelText: 'Shuttlecock Incident',
+                        helperText:
+                            'Choose who covers the shuttlecock if it is damaged',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(12)),
+                        ),
+                      ),
                     ),
                   ],
                 ),

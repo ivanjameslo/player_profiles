@@ -14,6 +14,7 @@ class DummyGames {
         courtRate: 500,
         shuttleCockPrice: 50,
         divideCostEqually: true,
+        shuttlecockChargedPlayerId: null,
         schedules: [
           CourtSchedule(
             courtNumber: 'Court 1',
@@ -35,6 +36,7 @@ class DummyGames {
         courtRate: 400,
         shuttleCockPrice: 45,
         divideCostEqually: true,
+        shuttlecockChargedPlayerId: profiles[1].id,
         schedules: [
           CourtSchedule(
             courtNumber: 'Court 3',
@@ -52,6 +54,7 @@ class DummyGames {
         courtRate: 350,
         shuttleCockPrice: 40,
         divideCostEqually: false,
+        shuttlecockChargedPlayerId: null,
         schedules: [
           CourtSchedule(
             courtNumber: 'Court A',

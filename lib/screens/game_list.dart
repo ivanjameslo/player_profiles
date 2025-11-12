@@ -147,15 +147,15 @@ class GameListScreenState extends State<GameListScreen> {
               _buildDetailRow('Court Name', game.courtName),
 
               const SizedBox(height: 12),
-              const Text(
-                'Computation',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Color(0xFF214D45),
-                ),
-              ),
-              const SizedBox(height: 6),
+                  const Text(
+                    'Computation',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Color(0xFF214D45),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
 
               // ✅ Compute total hours played across all schedules
               Builder(
@@ -167,7 +167,7 @@ class GameListScreenState extends State<GameListScreen> {
                   }
 
                   final courtTotal = game.courtRate * totalHours;
-                  final total = courtTotal + game.shuttleCockPrice;
+                  final total = game.totalGameCost;
 
                   return Column(
                     children: [
@@ -186,6 +186,18 @@ class GameListScreenState extends State<GameListScreen> {
                           const Text('Shuttlecock:'),
                           Text('₱${game.shuttleCockPrice.toStringAsFixed(2)}'),
                         ],
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          game.shuttlecockChargedPlayer != null
+                              ? 'Charged to ${game.shuttlecockChargedPlayer!.nickname}'
+                              : 'Divided among ${game.playerCount} player(s)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
                       ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -224,6 +236,22 @@ class GameListScreenState extends State<GameListScreen> {
                           ),
                         ],
                       ),
+                      if (game.divideCostEqually &&
+                          game.shuttlecockChargedPlayer != null) ...[
+                        const SizedBox(height: 4),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            '${game.shuttlecockChargedPlayer!.nickname} pays '
+                            '${currencyFormat.format(game.costForPlayer(game.shuttlecockChargedPlayer!))}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.redAccent.shade200,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   );
                 },
@@ -296,12 +324,31 @@ class GameListScreenState extends State<GameListScreen> {
                     player.nickname,
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
-                  subtitle: Text(
-                    player.fullName,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        player.fullName,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      if (game.divideCostEqually) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'Share: ${_safeCurrency(game.costForPlayer(player))}'
+                          '${game.isChargedForShuttlecock(player) ? ' (shuttle incident)' : ''}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: game.isChargedForShuttlecock(player)
+                                ? Colors.redAccent
+                                : Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),
@@ -530,29 +577,49 @@ class GameListScreenState extends State<GameListScreen> {
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
-                                          RichText(
-                                            text: TextSpan(
-                                              children: [
-                                                TextSpan(
-                                                  text: _safeCurrency(game.totalCost),
-                                                  style: const TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Color(0xFF214D45),
-                                                  ),
-                                                ),
-                                                if (game.divideCostEqually) ...[
-                                                  const TextSpan(
-                                                    text: ' per player',
-                                                    style: TextStyle(
-                                                      fontSize: 13,
-                                                      color: Colors.grey,
-                                                      fontWeight: FontWeight.w400,
+                                          Builder(
+                                            builder: (_) {
+                                              final chargedPlayer = game.divideCostEqually
+                                                  ? game.shuttlecockChargedPlayer
+                                                  : null;
+                                              final chargedShare = chargedPlayer != null
+                                                  ? _safeCurrency(game.costForPlayer(chargedPlayer))
+                                                  : null;
+                                              return RichText(
+                                                text: TextSpan(
+                                                  children: [
+                                                    TextSpan(
+                                                      text: _safeCurrency(game.totalCost),
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Color(0xFF214D45),
+                                                      ),
                                                     ),
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
+                                                    if (game.divideCostEqually) ...[
+                                                      const TextSpan(
+                                                        text: ' per player',
+                                                        style: TextStyle(
+                                                          fontSize: 13,
+                                                          color: Colors.grey,
+                                                          fontWeight: FontWeight.w400,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                    if (chargedPlayer != null && chargedShare != null) ...[
+                                                      TextSpan(
+                                                        text: '\n${chargedPlayer.nickname}: $chargedShare',
+                                                        style: const TextStyle(
+                                                          fontSize: 12,
+                                                          color: Colors.redAccent,
+                                                          fontWeight: FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                              );
+                                            },
                                           ),
                                         ],
                                       ),
