@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'profile.dart';
 import 'screens/user_settings.dart';
-import 'screens/add_game.dart';
 import 'screens/game_list.dart';
 
 class MainScreen extends StatefulWidget {
@@ -27,18 +26,10 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
-  final GlobalKey<GameListScreenState> _gamesKey = GlobalKey<GameListScreenState>();
-
   late final List<Widget> _screens = [
+    const GameListScreen(),
     const ProfilePage(),
     const UserSettingsScreen(),
-    AddGameScreen(
-      onSaved: (game) {
-        _gamesKey.currentState?.addGame(game);
-        setState(() => _selectedIndex = 3);
-      },
-    ),
-    GameListScreen(key: _gamesKey),
   ];
 
 
@@ -58,20 +49,16 @@ class _MainScreenState extends State<MainScreen> {
         onTap: _onItemTapped,
         items: const [
           BottomNavigationBarItem(
+            icon: Icon(Icons.sports),
+            label: 'Games',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.people),
             label: 'Players',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.add_box),
-            label: 'Add Game',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.sports),
-            label: 'Games',
+            label: 'Setting',
           ),
         ],
       ),
