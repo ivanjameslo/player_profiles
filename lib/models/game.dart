@@ -10,6 +10,7 @@ class Game {
   final double shuttleCockPrice;   // total price (will be divided by players)
   final bool divideCostEqually;    // kept for future use
   final String? shuttlecockChargedPlayerId;
+  final String? courtPaidPlayerId;
   final List<CourtSchedule> schedules;
   final DateTime createdAt;
   final List<ProfileItem> players;
@@ -22,6 +23,7 @@ class Game {
     required this.shuttleCockPrice,
     required this.divideCostEqually,
     this.shuttlecockChargedPlayerId,
+    this.courtPaidPlayerId,
     required this.schedules,
     required this.createdAt,
     this.players = const [],
@@ -37,7 +39,7 @@ class Game {
     final splitCount = playerCount > 0 ? playerCount : 1;
     if (divideCostEqually) {
       final courtShare = _courtTotal / splitCount;
-      final shuttleShare = _hasChargedPlayer ? 0.0 : (_safeShuttle / splitCount);
+      final shuttleShare = _hasChargedShuttlePlayer ? 0.0 : (_safeShuttle / splitCount);
       return _sanitize(courtShare + shuttleShare);
     }
     // When not dividing equally, surface the full game cost.
@@ -56,23 +58,50 @@ class Game {
     return null;
   }
 
+  ProfileItem? get courtPaidPlayer {
+    if (courtPaidPlayerId == null) return null;
+    for (final player in players) {
+      if (player.id == courtPaidPlayerId) {
+        return player;
+      }
+    }
+    return null;
+  }
+
   bool isChargedForShuttlecock(ProfileItem player) =>
       shuttlecockChargedPlayerId != null &&
       player.id == shuttlecockChargedPlayerId;
 
+  bool isCourtCostPayer(ProfileItem player) =>
+      courtPaidPlayerId != null && player.id == courtPaidPlayerId;
+
+  double shuttleShareForPlayer(ProfileItem player) {
+    final splitCount = playerCount > 0 ? playerCount : 1;
+    if (_hasChargedShuttlePlayer) {
+      return isChargedForShuttlecock(player) ? _safeShuttle : 0.0;
+    }
+    return _sanitize(_safeShuttle / splitCount);
+  }
+
   double costForPlayer(ProfileItem player) {
     final splitCount = playerCount > 0 ? playerCount : 1;
-    final courtShare = divideCostEqually ? _courtTotal / splitCount : _courtTotal;
-    final hasCharge = _hasChargedPlayer;
+    double total = 0.0;
 
-    double shuttleShare;
-    if (hasCharge) {
-      shuttleShare = isChargedForShuttlecock(player) ? _safeShuttle : 0.0;
-    } else {
-      shuttleShare = _safeShuttle / splitCount;
+    if (divideCostEqually) {
+      total += _courtTotal / splitCount;
+    } else if (isCourtCostPayer(player)) {
+      total += _courtTotal;
     }
 
-    return _sanitize(courtShare + shuttleShare);
+    if (_hasChargedShuttlePlayer) {
+      if (isChargedForShuttlecock(player)) {
+        total += _safeShuttle;
+      }
+    } else {
+      total += _safeShuttle / splitCount;
+    }
+
+    return _sanitize(total);
   }
 
   /// --- Display Title ---
@@ -110,7 +139,7 @@ class Game {
           ? shuttleCockPrice
           : 0.0;
 
-  bool get _hasChargedPlayer =>
+  bool get _hasChargedShuttlePlayer =>
       shuttlecockChargedPlayerId != null && shuttlecockChargedPlayer != null;
 
   double _sanitize(double value) =>

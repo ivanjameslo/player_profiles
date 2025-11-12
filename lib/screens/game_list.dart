@@ -303,8 +303,18 @@ class GameListScreenState extends State<GameListScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              ...game.players.map(
-                (player) => ListTile(
+            ...game.players.map(
+              (player) {
+                final bool isCourtPayer = game.isCourtCostPayer(player);
+                final bool isShuttlePayer = game.isChargedForShuttlecock(player);
+                final bool splitsShuttleOnly = !game.divideCostEqually &&
+                    game.shuttlecockChargedPlayer == null &&
+                    game.shuttleCockPrice > 0;
+                final double shuttleShare = splitsShuttleOnly
+                    ? game.shuttleShareForPlayer(player)
+                    : 0.0;
+
+                return ListTile(
                   contentPadding: EdgeInsets.zero,
                   dense: true,
                   leading: CircleAvatar(
@@ -339,19 +349,51 @@ class GameListScreenState extends State<GameListScreen> {
                         const SizedBox(height: 2),
                         Text(
                           'Share: ${_safeCurrency(game.costForPlayer(player))}'
-                          '${game.isChargedForShuttlecock(player) ? ' (shuttle incident)' : ''}',
+                          '${isShuttlePayer ? ' (shuttle incident)' : ''}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: game.isChargedForShuttlecock(player)
+                            color: isShuttlePayer
                                 ? Colors.redAccent
                                 : Colors.grey.shade700,
                           ),
                         ),
+                      ] else ...[
+                        const SizedBox(height: 4),
+                        if (isCourtPayer || isShuttlePayer)
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              if (isCourtPayer)
+                                _buildTag(
+                                  'Pays full court rate',
+                                  background: Colors.orange.shade50,
+                                  foreground: Colors.orange.shade700,
+                                ),
+                              if (isShuttlePayer)
+                                _buildTag(
+                                  'Pays shuttlecock',
+                                  background: Colors.red.shade50,
+                                  foreground: Colors.red.shade700,
+                                ),
+                            ],
+                          ),
+                        if (!isShuttlePayer &&
+                            splitsShuttleOnly &&
+                            shuttleShare > 0)
+                          Text(
+                            'Shuttle share: ${_safeCurrency(shuttleShare)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
                       ],
                     ],
                   ),
-                ),
-              ),
+                );
+              },
+            ),
             ] else ...[
               const SizedBox(height: 16),
               Text(
@@ -691,6 +733,25 @@ class GameListScreenState extends State<GameListScreen> {
 
     );
   }
+  Widget _buildTag(String text,
+      {Color? background, Color? foreground}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: background ?? Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          color: foreground ?? Colors.orange.shade700,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
   Widget _buildDetailRow(String label, String value) {
   return Padding(
     padding: const EdgeInsets.only(bottom: 8),

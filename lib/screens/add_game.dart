@@ -29,6 +29,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
   final _shuttleCockPriceController = TextEditingController();
   bool _divideCourtEqually = true;
   String? _shuttleAccidentPlayerId;
+  String? _courtPaidPlayerId;
   final List<CourtSchedule> _schedules = [];
   final List<ProfileItem> _selectedPlayers = [];
   late final PlayerStore _playerStore;
@@ -36,13 +37,17 @@ class _AddGameScreenState extends State<AddGameScreen> {
 
   List<ProfileItem> get _availablePlayers => _playerStore.players;
 
-  bool get _hasReachedPlayerLimit => _selectedPlayers.length >= 4;
   int get _playerShareCount =>
       _selectedPlayers.isEmpty ? 1 : _selectedPlayers.length;
   String? get _validChargePlayerId {
     if (_shuttleAccidentPlayerId == null) return null;
     final exists = _selectedPlayers.any((p) => p.id == _shuttleAccidentPlayerId);
     return exists ? _shuttleAccidentPlayerId : null;
+  }
+  String? get _validCourtPayerId {
+    if (_courtPaidPlayerId == null) return null;
+    final exists = _selectedPlayers.any((p) => p.id == _courtPaidPlayerId);
+    return exists ? _courtPaidPlayerId : null;
   }
   String get _shuttleHelperText {
     if (_selectedPlayers.isEmpty) {
@@ -69,18 +74,6 @@ class _AddGameScreenState extends State<AddGameScreen> {
 
     if (shouldSelect && alreadySelected) return;
 
-    if (shouldSelect && _hasReachedPlayerLimit) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You can only select up to 4 players.'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-
     setState(() {
       if (shouldSelect) {
         _selectedPlayers.add(player);
@@ -88,6 +81,9 @@ class _AddGameScreenState extends State<AddGameScreen> {
         _selectedPlayers.removeWhere((p) => p.id == player.id);
         if (_shuttleAccidentPlayerId == player.id) {
           _shuttleAccidentPlayerId = null;
+        }
+        if (_courtPaidPlayerId == player.id) {
+          _courtPaidPlayerId = null;
         }
       }
     });
@@ -115,6 +111,10 @@ class _AddGameScreenState extends State<AddGameScreen> {
           !availableIds.contains(_shuttleAccidentPlayerId)) {
         _shuttleAccidentPlayerId = null;
       }
+      if (_courtPaidPlayerId != null &&
+          !availableIds.contains(_courtPaidPlayerId)) {
+        _courtPaidPlayerId = null;
+      }
     });
   }
 
@@ -125,6 +125,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
     _shuttleCockPriceController.text = game.shuttleCockPrice.toStringAsFixed(2);
     _divideCourtEqually = game.divideCostEqually;
     _shuttleAccidentPlayerId = game.shuttlecockChargedPlayerId;
+    _courtPaidPlayerId = game.courtPaidPlayerId;
     _selectedPlayers
       ..clear()
       ..addAll(game.players);
@@ -150,6 +151,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
       _shuttleCockPriceController.text  = d.shuttlecockPrice.toStringAsFixed(0);
       _divideCourtEqually               = d.divideEqually;
       _shuttleAccidentPlayerId          = null;
+      _courtPaidPlayerId                = null;
     });
   }
 
@@ -308,9 +310,21 @@ class _AddGameScreenState extends State<AddGameScreen> {
           return;
         }
 
+        if (!_divideCourtEqually && _validCourtPayerId == null) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please select who will pay the court rate'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
         final now = DateTime.now();
         final existingGame = widget.initialGame;
         final chargePlayerId = _validChargePlayerId;
+        final courtPayerId = _divideCourtEqually ? null : _validCourtPayerId;
         final newGame = Game(
           id: existingGame?.id ?? now.millisecondsSinceEpoch.toString(),
           title: _titleController.text.trim().isEmpty
@@ -321,6 +335,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
           shuttleCockPrice: double.tryParse(_shuttleCockPriceController.text.trim()) ?? 0,
           divideCostEqually: _divideCourtEqually,
           shuttlecockChargedPlayerId: chargePlayerId,
+          courtPaidPlayerId: courtPayerId,
           schedules: List.from(_schedules),
           createdAt: existingGame?.createdAt ?? now,
           players: List.unmodifiable(_selectedPlayers),
@@ -511,11 +526,9 @@ class _AddGameScreenState extends State<AddGameScreen> {
                           ),
                         ),
                         Text(
-                          '${_selectedPlayers.length}/4 selected',
+                          '${_selectedPlayers.length} selected',
                           style: TextStyle(
-                            color: _hasReachedPlayerLimit
-                                ? Colors.red
-                                : Colors.grey.shade600,
+                            color: Colors.grey.shade600,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -523,7 +536,7 @@ class _AddGameScreenState extends State<AddGameScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Pick up to four players from your profile list to split the game cost.',
+                      'Select everyone participating (including bench or subs) to track costs accurately.',
                       style: TextStyle(
                         color: Colors.grey.shade600,
                         fontSize: 13,
@@ -772,10 +785,41 @@ class _AddGameScreenState extends State<AddGameScreen> {
                       onChanged: (bool value) {
                         setState(() {
                           _divideCourtEqually = value;
+                          if (value) {
+                            _courtPaidPlayerId = null;
+                          }
                         });
                       },
                       activeColor: const Color(0xFF214D45),
                     ),
+                    if (!_divideCourtEqually) ...[
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String?>(
+                        value: _validCourtPayerId,
+                        items: _selectedPlayers
+                            .map(
+                              (player) => DropdownMenuItem<String?>(
+                                value: player.id,
+                                child: Text('Charge ${player.nickname} for court'),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: _selectedPlayers.isEmpty
+                            ? null
+                            : (value) {
+                                setState(() {
+                                  _courtPaidPlayerId = value;
+                                });
+                              },
+                        decoration: const InputDecoration(
+                          labelText: 'Court Fee Payer',
+                          helperText: 'Select who will pay the entire court rate',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String?>(
                       value: _validChargePlayerId,
