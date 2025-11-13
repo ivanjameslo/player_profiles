@@ -8,7 +8,7 @@ class Game {
   final String courtName;
   final double courtRate;          // rate per hour
   final double shuttleCockPrice;   // total price (will be divided by players)
-  final bool divideCostEqually;    // kept for future use
+  final bool divideCostEqually;    
   final String? shuttlecockChargedPlayerId;
   final String? courtPaidPlayerId;
   final List<CourtSchedule> schedules;
