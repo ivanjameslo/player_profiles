@@ -10,7 +10,7 @@ void main() {
 
   // Catch async errors too and print them
   runZonedGuarded(() {
-    runApp(const MyApp()); // <-- your root widget
+    runApp(const MyApp()); // root widget
   }, (error, stack) {
     // ignore: avoid_print
     print('🔥 Uncaught: $error\n$stack');
